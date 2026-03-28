@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ product.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="product-container">
+
+    <div class="product-image">
+        <img src="{{ url_for('static', filename='images/' + product.images[0]) }}">
+    </div>
+
+    <div class="product-details">
+        <h2>{{ product.name }}</h2>
+        <p class="brand">{{ product.brand }}</p>
+        <p class="price">₹{{ product.price }}</p>
+        <p>⭐ {{ product.rating }}</p>
+
+        <p>{{ product.description }}</p>
+
+        <h3>Features</h3>
+        <ul>
+            {% for f in product.features %}
+            <li>{{ f }}</li>
+            {% endfor %}
+        </ul>
+
+        <h3>Specifications</h3>
+        <ul>
+            {% for key, value in product.specifications.items() %}
+            <li>{{ key }}: {{ value }}</li>
+            {% endfor %}
+        </ul>
+
+        <a href="/chat/{{ product.id }}">
+            <button>Ask ZEAL AI 🤖</button>
+        </a>
+    </div>
+
+</div>
+
+</body>
+</html>

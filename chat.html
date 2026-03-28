@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZEAL AI Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<h2>🤖 ZEAL AI - {{ product.name }}</h2>
+
+<div class="chat-box" id="chatBox"></div>
+
+<div class="input-box">
+    <input type="text" id="question" placeholder="Ask something...">
+
+    <!-- 🎤 Mic Button -->
+    <button onclick="startMic()">🎤</button>
+
+    <button onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+let shownAnswers = new Set();
+
+// ------------------ LOAD CHAT HISTORY ------------------
+function loadHistory() {
+    fetch('/get-history/{{ product.id }}')
+    .then(res => res.json())
+    .then(data => {
+        let chatBox = document.getElementById("chatBox");
+
+        data.forEach(item => {
+            chatBox.innerHTML += `
+                <div class="user-msg">${item.question}</div>
+                <div class="bot-msg">${item.answer}</div>
+            `;
+        });
+
+        scrollToBottom();
+    });
+}
+
+// ------------------ SEND MESSAGE ------------------
+function sendMessage() {
+    let input = document.getElementById("question");
+    let chatBox = document.getElementById("chatBox");
+
+    let question = input.value;
+    if (question.trim() === "") return;
+
+    // Show user message
+    chatBox.innerHTML += `<div class="user-msg">${question}</div>`;
+
+    // Show loading
+    chatBox.innerHTML += `<div class="bot-msg" id="loading">🤖 Thinking...</div>`;
+
+    input.value = "";
+    scrollToBottom();
+
+    fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            question: question,
+            image: "{{ product.images[0] }}",
+            product_id: {{ product.id }}
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("loading").remove();
+
+        chatBox.innerHTML += `<div class="bot-msg">${data.answer}</div>`;
+        scrollToBottom();
+
+        // 🔊 Voice output (optional)
+        speak(data.answer);
+
+        loadAdminAnswers();
+    });
+}
+
+// ------------------ MIC INPUT 🎤 ------------------
+function startMic() {
+    if (!('webkitSpeechRecognition' in window)) {
+        alert("Mic not supported in this browser");
+        return;
+    }
+
+    const recognition = new webkitSpeechRecognition();
+    recognition.lang = "en-US";
+
+    recognition.start();
+
+    recognition.onresult = function(event) {
+        let text = event.results[0][0].transcript;
+        document.getElementById("question").value = text;
+    };
+
+    recognition.onerror = function() {
+        alert("Mic error. Try again.");
+    };
+}
+
+// ------------------ TEXT TO SPEECH 🔊 ------------------
+function speak(text) {
+    if ('speechSynthesis' in window) {
+        let speech = new SpeechSynthesisUtterance(text);
+        speech.lang = "en-US";
+        speech.rate = 1;
+        window.speechSynthesis.speak(speech);
+    }
+}
+
+// ------------------ ADMIN ANSWERS 🔔 ------------------
+function loadAdminAnswers() {
+    fetch('/get-answers/{{ product.id }}')
+    .then(res => res.json())
+    .then(data => {
+        let chatBox = document.getElementById("chatBox");
+
+        data.forEach(item => {
+            let key = item.question + item.answer;
+
+            if (shownAnswers.has(key)) return;
+
+            chatBox.innerHTML += `
+                <div class="bot-msg">🔔 ${item.answer}</div>
+            `;
+
+            shownAnswers.add(key);
+        });
+
+        scrollToBottom();
+    });
+}
+
+// ------------------ SCROLL ------------------
+function scrollToBottom() {
+    let chatBox = document.getElementById("chatBox");
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// ------------------ ENTER KEY ------------------
+document.getElementById("question").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        sendMessage();
+    }
+});
+
+// ------------------ INIT ------------------
+window.onload = function() {
+    loadHistory();
+    loadAdminAnswers();
+};
+
+// Auto refresh admin replies
+setInterval(loadAdminAnswers, 5000);
+</script>
+
+</body>
+</html>
